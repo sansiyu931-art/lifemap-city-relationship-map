@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LifeMap</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <canvas id="lifeMap" aria-label="LifeMap city relationship map"></canvas>
+
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <div>
+            <strong>LifeMap</strong>
+            <span>人际关系城市星图</span>
+          </div>
+        </div>
+        <div class="toolbar">
+          <label class="search-box">
+            <span>搜索</span>
+            <input id="citySearch" type="search" placeholder="城市或朋友" />
+          </label>
+          <button id="addFriendBtn" class="primary-btn" type="button">添加关系</button>
+          <button id="exportDataBtn" class="ghost-btn" type="button">导出</button>
+          <button id="importDataBtn" class="ghost-btn" type="button">导入</button>
+          <button id="settingsBtn" class="ghost-btn" type="button">设置</button>
+          <a id="githubStarLink" class="ghost-link" href="https://github.com/sansiyu931-art/lifemap-city-relationship-map" target="_blank" rel="noreferrer">GitHub Star</a>
+          <button id="resetViewBtn" class="icon-btn" type="button" title="重置视图">⌖</button>
+          <input id="dataImportInput" type="file" accept="application/json,.json" hidden />
+        </div>
+      </header>
+
+      <aside id="leftPanel" class="left-panel is-collapsed">
+        <button class="panel-rail" data-collapse="leftPanel" type="button">推荐</button>
+        <section class="panel-section">
+          <div class="section-head">
+            <h2>推荐权重</h2>
+            <span id="zoomLabel">星图层级</span>
+          </div>
+          <div id="weights" class="weights"></div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-head">
+            <h2>城市推荐</h2>
+            <span>动态卡片</span>
+          </div>
+          <div id="featuredRecommendations" class="featured-recommendations"></div>
+          <div id="ranking" class="ranking-list"></div>
+        </section>
+      </aside>
+
+      <aside id="detailPanel" class="detail-panel is-open is-collapsed"></aside>
+
+      <aside id="settingsPanel" class="settings-panel is-collapsed">
+        <button class="panel-rail settings-rail" data-collapse="settingsPanel" type="button">设置</button>
+        <section class="panel-section">
+          <div class="section-head">
+            <h2>个人 Dashboard</h2>
+            <span>作品展示指标</span>
+          </div>
+          <div id="dashboardStats" class="dashboard-grid"></div>
+        </section>
+        <section class="panel-section">
+          <div class="section-head">
+            <h2>展示设置</h2>
+            <span>隐私与示例</span>
+          </div>
+          <div class="settings-list">
+            <label class="switch-row">
+              <span>
+                <strong>隐私模式</strong>
+                <small>隐藏姓名，只显示关系类型和强度</small>
+              </span>
+              <input id="privacyToggle" type="checkbox" />
+            </label>
+            <button id="resetDemoBtn" class="wide-action" type="button">一键重置示例数据</button>
+            <a class="wide-action link-action" href="https://github.com/sansiyu931-art/lifemap-city-relationship-map" target="_blank" rel="noreferrer">在 GitHub 给 LifeMap Star</a>
+          </div>
+        </section>
+        <section class="panel-section">
+          <div class="section-head">
+            <h2>下一阶段</h2>
+            <span>登录与同步</span>
+          </div>
+          <div class="roadmap-list">
+            <span>Supabase 登录</span>
+            <span>多设备实时同步</span>
+            <span>脱敏只读分享链接</span>
+            <span>AI 城市决策助手</span>
+          </div>
+        </section>
+      </aside>
+
+      <section id="compareTray" class="compare-tray is-collapsed">
+        <button class="panel-rail compare-rail" data-collapse="compareTray" type="button">城市对比</button>
+        <div class="compare-head">
+          <div>
+            <strong>城市对比</strong>
+            <span>按省份、城市、区域加入 2-4 个城市</span>
+          </div>
+          <button id="clearCompareBtn" class="ghost-btn" type="button">清空</button>
+        </div>
+        <div class="compare-picker">
+          <label>
+            省份
+            <select id="compareProvince"></select>
+          </label>
+          <label>
+            城市
+            <select id="compareCity"></select>
+          </label>
+          <label>
+            区域
+            <select id="compareDistrict"></select>
+          </label>
+          <button id="addCompareBtn" class="primary-btn" type="button">加入对比</button>
+        </div>
+        <div id="compareCities" class="compare-cities"></div>
+        <div id="compareTable" class="compare-table"></div>
+      </section>
+    </main>
+
+    <dialog id="friendDialog" class="friend-dialog">
+      <form id="friendForm" method="dialog">
+        <div class="dialog-head">
+          <div>
+            <strong>添加人际关系</strong>
+            <span>让一座城市多亮一点</span>
+          </div>
+          <button id="closeFriendDialogBtn" class="icon-btn" type="button" title="关闭">×</button>
+        </div>
+
+        <div class="form-grid">
+          <label>
+            姓名/昵称
+            <input name="name" required placeholder="填写真实朋友昵称" />
+          </label>
+          <label>
+            省份/直辖市
+            <select name="province" required></select>
+          </label>
+          <label>
+            城市
+            <select name="city" required></select>
+          </label>
+          <label>
+            区域
+            <select name="district" required></select>
+          </label>
+          <label>
+            关系类型
+            <select name="type">
+              <option>朋友</option>
+              <option>同学</option>
+              <option>同事</option>
+              <option>前同事</option>
+              <option>合作伙伴</option>
+              <option>亲戚</option>
+            </select>
+          </label>
+          <label>
+            关系强度
+            <select name="strength">
+              <option value="strong">强</option>
+              <option value="medium">中</option>
+              <option value="weak">弱</option>
+            </select>
+          </label>
+          <label>
+            行业/职业方向
+            <input name="industry" placeholder="例如：AI 产品" />
+          </label>
+          <label>
+            最近联系
+            <input name="recent" placeholder="例如：上周" />
+          </label>
+          <label class="wide">
+            可提供支持
+            <input name="support" placeholder="聊天陪伴、介绍工作、介绍朋友" />
+          </label>
+        </div>
+
+        <menu class="dialog-actions">
+          <button id="cancelFriendBtn" value="cancel" class="ghost-btn" type="button">取消</button>
+          <button id="saveFriendBtn" value="default" class="primary-btn" type="submit">保存</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
