@@ -350,7 +350,9 @@ const storageKey = "lifemap-real-friends-v2";
 const cityNotesKey = "lifemap-city-notes-v1";
 const settingsKey = `${storageKey}-settings-v1`;
 
-const friendStorageCandidates = [storageKey, "sans-lifemap-real-friends-v1", "lifemap-friends"];
+const recoveryStorageKey = "lifemap-recovery-friends-v1";
+const recoverySnapshotPrefix = "lifemap-recovery-snapshot-";
+const friendStorageCandidates = [storageKey, recoveryStorageKey, "sans-lifemap-real-friends-v1", "lifemap-blank-copy-friends-v1", "lifemap-friends"];
 const cityNotesStorageCandidates = [cityNotesKey, "sans-lifemap-city-notes-v1"];
 const settingsStorageCandidates = [settingsKey, "sans-lifemap-real-friends-v1-settings-v1"];
 
@@ -384,13 +386,18 @@ function readStoredJson(key) {
   try {
     return JSON.parse(value);
   } catch {
-    storageRemove(key);
     return null;
   }
 }
 
 function pickStoredArray(keys) {
-  return keys.map((key) => readStoredJson(key)).filter(Array.isArray).sort((a, b) => b.length - a.length)[0] || [];
+  const snapshotKeys = [];
+  try {
+    snapshotKeys.push(...Object.keys(localStorage).filter((key) => key.startsWith(recoverySnapshotPrefix)));
+  } catch {
+    // Ignore blocked storage enumeration.
+  }
+  return [...keys, ...snapshotKeys].map((key) => readStoredJson(key)).filter(Array.isArray).sort((a, b) => b.length - a.length)[0] || [];
 }
 
 function pickStoredObject(keys) {
@@ -482,6 +489,61 @@ const demoFriends = [
     industry: "自由职业",
     support: "生活帮助、城市体验",
     recent: "上月",
+  },
+  {
+    name: "内容朋友",
+    cityId: "guangzhou",
+    province: "广东",
+    district: "天河区",
+    type: "朋友",
+    strength: "medium",
+    industry: "内容运营",
+    support: "本地生活建议、内容合作",
+    recent: "本月",
+  },
+  {
+    name: "AI 同事",
+    cityId: "shanghai",
+    province: "上海",
+    district: "徐汇区",
+    type: "同事",
+    strength: "strong",
+    industry: "AI 产品",
+    support: "介绍工作、行业信息",
+    recent: "本周",
+  },
+  {
+    name: "研究生同学",
+    cityId: "nanjing",
+    province: "江苏",
+    district: "鼓楼区",
+    type: "同学",
+    strength: "weak",
+    industry: "教育科技",
+    support: "学习资源、城市信息",
+    recent: "上月",
+  },
+  {
+    name: "设计搭子",
+    cityId: "xiamen",
+    province: "福建",
+    district: "思明区",
+    type: "合作伙伴",
+    strength: "medium",
+    industry: "品牌设计",
+    support: "创意合作、生活体验",
+    recent: "两周前",
+  },
+  {
+    name: "老朋友",
+    cityId: "changsha",
+    province: "湖南",
+    district: "岳麓区",
+    type: "朋友",
+    strength: "strong",
+    industry: "新媒体",
+    support: "陪伴聊天、城市落脚建议",
+    recent: "昨天",
   },
 ];
 
@@ -1442,7 +1504,7 @@ function renderDetail() {
           people.length
             ? people
                 .map(
-                  (friend) => `
+                  (friend, index) => `
                     <article class="friend-card" data-friend-id="${escapeHtml(friend.id)}">
                       <span class="avatar">${escapeHtml(userSettings.privacyMode ? strengthText[friend.strength] : friend.name.slice(0, 1).toUpperCase())}</span>
                       <div>
@@ -1666,7 +1728,12 @@ function hitCity(x, y) {
 }
 
 function saveFriends() {
-  storageSet(storageKey, JSON.stringify(friends));
+  const payload = JSON.stringify(friends);
+  storageSet(storageKey, payload);
+  storageSet(recoveryStorageKey, payload);
+  if (friends.length) {
+    storageSet(`${recoverySnapshotPrefix}${new Date().toISOString().slice(0, 10)}`, payload);
+  }
 }
 
 function saveCityNotes() {
@@ -1973,7 +2040,12 @@ citySearch.addEventListener("input", (event) => {
 window.addEventListener("resize", resize);
 
 resize();
-renderAll();
+if (new URLSearchParams(window.location.search).get("demo") === "10") {
+  resetDemoData();
+  window.history.replaceState({}, "", window.location.pathname);
+} else {
+  renderAll();
+}
 loadChinaGeoJson();
 loadWorldGeoJson();
 requestAnimationFrame(render);

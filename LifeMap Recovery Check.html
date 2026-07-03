@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LifeMap Recovery Check</title>
+    <style>
+      body {
+        margin: 0;
+        background: #08111f;
+        color: #eaf2ff;
+        font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 36px 20px;
+      }
+      h1 {
+        margin: 0 0 8px;
+      }
+      .panel {
+        border: 1px solid rgba(180, 205, 255, 0.24);
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        padding: 18px;
+        margin: 18px 0;
+      }
+      button {
+        border: 0;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #08111f;
+        padding: 10px 14px;
+        font-weight: 700;
+        cursor: pointer;
+        margin-right: 8px;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: rgba(0, 0, 0, 0.28);
+        border-radius: 8px;
+        padding: 14px;
+        max-height: 420px;
+        overflow: auto;
+      }
+      .muted {
+        color: #9aa8bc;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>LifeMap 恢复检查</h1>
+      <p class="muted">这个页面只读取当前浏览器、当前文件域下的 LifeMap 本地数据，不会上传任何内容。</p>
+      <div class="panel">
+        <button id="refresh">重新检查</button>
+        <button id="copy">复制结果</button>
+        <button id="download">下载结果</button>
+      </div>
+      <div class="panel">
+        <strong id="summary">检查中...</strong>
+        <pre id="output"></pre>
+      </div>
+    </main>
+    <script>
+      const output = document.querySelector("#output");
+      const summary = document.querySelector("#summary");
+      let latest = {};
+
+      function safeParse(value) {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+      }
+
+      function scan() {
+        const data = {};
+        const keys = [];
+        try {
+          keys.push(...Object.keys(localStorage));
+        } catch (error) {
+          latest = { error: String(error) };
+          summary.textContent = "浏览器阻止读取 localStorage";
+          output.textContent = JSON.stringify(latest, null, 2);
+          return;
+        }
+        keys
+          .filter((key) => key.toLowerCase().includes("lifemap"))
+          .sort()
+          .forEach((key) => {
+            data[key] = safeParse(localStorage.getItem(key));
+          });
+        latest = {
+          checkedAt: new Date().toISOString(),
+          page: location.href,
+          lifemapKeys: Object.keys(data),
+          data,
+        };
+        const friendArrays = Object.values(data).filter(Array.isArray);
+        const friendCount = friendArrays.reduce((max, item) => Math.max(max, item.length), 0);
+        summary.textContent = `找到 ${Object.keys(data).length} 个 LifeMap 数据键，最多包含 ${friendCount} 位朋友`;
+        output.textContent = JSON.stringify(latest, null, 2);
+      }
+
+      document.querySelector("#refresh").addEventListener("click", scan);
+      document.querySelector("#copy").addEventListener("click", async () => {
+        await navigator.clipboard.writeText(JSON.stringify(latest, null, 2));
+      });
+      document.querySelector("#download").addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify(latest, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "lifemap-recovery-check.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+      scan();
+    </script>
+  </body>
+</html>
